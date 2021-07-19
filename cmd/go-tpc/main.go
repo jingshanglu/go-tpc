@@ -14,6 +14,9 @@ import (
 
 	// mysql package
 	_ "github.com/go-sql-driver/mysql"
+
+    // oracle database
+    _ "github.com/godror/godror"
 )
 
 var (
@@ -44,7 +47,6 @@ var (
 const (
 	unknownDB   = "Unknown database"
 	createDBDDL = "CREATE DATABASE IF NOT EXISTS "
-	mysqlDriver = "mysql"
 )
 
 func closeDB() {
@@ -56,24 +58,38 @@ func closeDB() {
 
 func openDB() {
 	// TODO: support other drivers
+	//var driverTag string
+
 	var (
 		tmpDB *sql.DB
 		err   error
-		ds    = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, dbName)
+		//ds    = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, dbName)
+		ds    string
+		driverTag string
 	)
+	if driver == "mysql" {
+		driverTag="mysql"
+		ds = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, dbName)
+
+	} else if driver == "oracle" {
+		driverTag = "oracle"
+		ds = fmt.Sprintf("%s/%s@%s:%d/%s", user, password, host, port, dbName)
+	}
 	// allow multiple statements in one query to allow q15 on the TPC-H
 	fullDsn := fmt.Sprintf("%s?multiStatements=true", ds)
 	if len(connParams) > 0 {
 		fullDsn = fmt.Sprintf("%s&%s", fullDsn, connParams)
 	}
-	globalDB, err = sql.Open(mysqlDriver, fullDsn)
+	//globalDB, err = sql.Open(mysqlDriver, fullDsn)
+	globalDB, err = sql.Open(driverTag, fullDsn)
 	if err != nil {
 		panic(err)
 	}
 	if err := globalDB.Ping(); err != nil {
 		errString := err.Error()
 		if strings.Contains(errString, unknownDB) {
-			tmpDB, _ = sql.Open(mysqlDriver, ds)
+			//tmpDB, _ = sql.Open(mysqlDriver, ds)
+			tmpDB, _ = sql.Open(driverTag, ds)
 			defer tmpDB.Close()
 			if _, err := tmpDB.Exec(createDBDDL + dbName); err != nil {
 				panic(fmt.Errorf("failed to create database, err %v\n", err))
